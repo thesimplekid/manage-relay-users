@@ -21,6 +21,7 @@ log = "0.4.17"
 ctrlc = "3.2.5"
 thiserror = "1"
 hex = "0.4.3"
+axum = { version = "0.6.11", features=["json"] }
 
 [dev-dependencies]
 serial_test = "1.0.0"

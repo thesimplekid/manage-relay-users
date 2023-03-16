@@ -1,3 +1,6 @@
+use axum::http::HeaderMap;
+use error::Error;
+use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
 
 use nauthz_grpc::authorization_server::{Authorization, AuthorizationServer};
@@ -6,6 +9,17 @@ use nauthz_grpc::{Decision, EventReply, EventRequest};
 use crate::config::Settings;
 use crate::repo::Repo;
 
+use serde::Deserialize;
+
+use axum::{
+    extract::{Json, State},
+    routing::post,
+    Router,
+};
+
+use std::sync::Arc;
+
+use tokio::task;
 use tracing::{debug, info};
 
 pub mod nauthz_grpc {
@@ -19,7 +33,7 @@ pub mod repo;
 pub mod utils;
 
 pub struct EventAuthz {
-    pub repo: Repo,
+    pub repo: Arc<Mutex<Repo>>,
     pub settings: Settings,
 }
 
@@ -48,10 +62,15 @@ impl Authorization for EventAuthz {
             // I just picked this kind number should maybe put more thought into it, NIP?
             if event.kind == 4242 {
                 // TODO: Spawn this to not block
-                self.repo.handle_admission_update(event).await.unwrap();
+                self.repo
+                    .lock()
+                    .await
+                    .handle_admission_update(event)
+                    .await
+                    .unwrap();
 
                 // TODO: This is testing comment out
-                self.repo.get_all_accounts().unwrap();
+                self.repo.lock().await.get_all_accounts().unwrap();
             }
 
             return Ok(Response::new(nauthz_grpc::EventReply {
@@ -61,7 +80,7 @@ impl Authorization for EventAuthz {
         }
 
         // Check user is in DB
-        if let Ok(Some(user_account)) = self.repo.get_account(&author) {
+        if let Ok(Some(user_account)) = self.repo.lock().await.get_account(&author) {
             // Check user admission status
             if user_account.is_admitted() {
                 return Ok(Response::new(nauthz_grpc::EventReply {
@@ -88,11 +107,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     debug!("{:?}", settings);
 
-    let repo = Repo::new();
+    let repo = Arc::new(Mutex::new(Repo::new()));
 
-    repo.get_all_accounts()?;
+    repo.lock().await.get_all_accounts()?;
 
-    let checker = EventAuthz { repo, settings };
+    let checker = EventAuthz {
+        repo: repo.clone(),
+        settings: settings.clone(),
+    };
+
+    // run this in a new thread
+    let handle = task::spawn(start_server(settings.info.api_key.clone(), repo));
 
     info!("EventAuthz Server listening on {addr}");
     // Start serving
@@ -100,5 +125,67 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(AuthorizationServer::new(checker))
         .serve(addr)
         .await?;
+
+    handle.await.unwrap()?;
     Ok(())
+}
+
+#[derive(Clone)]
+struct AppState {
+    api_key: String,
+    repo: Arc<Mutex<Repo>>,
+}
+
+async fn start_server(api_key: String, repo: Arc<Mutex<Repo>>) -> Result<(), Error> {
+    let shared_state = AppState {
+        api_key: api_key.to_string(),
+        repo,
+    };
+
+    // build our application with a single route
+    let app = Router::new()
+        .route("/update", post(update_users))
+        .with_state(shared_state);
+
+    // run it with hyper on localhost:3000
+    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct Users {
+    allow: Vec<String>,
+    deny: Vec<String>,
+}
+
+async fn update_users(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<Users>,
+) {
+    if let Some(key) = headers.get("X-Api-Key") {
+        if key.eq(&state.api_key) {
+            // Admit pubkeys
+            state
+                .repo
+                .lock()
+                .await
+                .admit_pubkeys(&payload.allow)
+                .await
+                .ok();
+
+            // Deny pubkeys
+            state
+                .repo
+                .lock()
+                .await
+                .deny_pubkeys(&payload.deny)
+                .await
+                .ok();
+        }
+    }
 }
