@@ -9,11 +9,12 @@ use nauthz_grpc::{Decision, EventReply, EventRequest};
 use crate::config::Settings;
 use crate::repo::Repo;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use axum::{
     extract::{Json, State},
-    routing::post,
+    http::StatusCode,
+    routing::{get, post},
     Router,
 };
 
@@ -117,7 +118,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // run this in a new thread
-    let handle = task::spawn(start_server(settings.info.api_key.clone(), repo));
+    if let Some(api_key) = settings.info.api_key {
+        let _handle = task::spawn(start_server(api_key, repo));
+    }
 
     info!("EventAuthz Server listening on {addr}");
     // Start serving
@@ -126,7 +129,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .serve(addr)
         .await?;
 
-    handle.await.unwrap()?;
     Ok(())
 }
 
@@ -145,6 +147,7 @@ async fn start_server(api_key: String, repo: Arc<Mutex<Repo>>) -> Result<(), Err
     // build our application with a single route
     let app = Router::new()
         .route("/update", post(update_users))
+        .route("/users", get(get_users))
         .with_state(shared_state);
 
     // run it with hyper on localhost:3000
@@ -156,36 +159,51 @@ async fn start_server(api_key: String, repo: Arc<Mutex<Repo>>) -> Result<(), Err
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
-struct Users {
-    allow: Vec<String>,
-    deny: Vec<String>,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Users {
+    allow: Option<Vec<String>>,
+    deny: Option<Vec<String>>,
 }
 
 async fn update_users(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(payload): Json<Users>,
-) {
+) -> Result<(), (StatusCode, String)> {
+    debug!("Users: {payload:?}");
     if let Some(key) = headers.get("X-Api-Key") {
+        debug!("Sent key: {key:?}");
         if key.eq(&state.api_key) {
             // Admit pubkeys
-            state
-                .repo
-                .lock()
-                .await
-                .admit_pubkeys(&payload.allow)
-                .await
-                .ok();
+            if let Some(pubkeys) = &payload.allow {
+                debug!("Pubkeys to allow: {pubkeys:?}");
+                state.repo.lock().await.admit_pubkeys(&pubkeys).await.ok();
+            }
 
             // Deny pubkeys
-            state
-                .repo
-                .lock()
-                .await
-                .deny_pubkeys(&payload.deny)
-                .await
-                .ok();
+            if let Some(pubkeys) = &payload.deny {
+                debug!("Pubkeys to deny: {pubkeys:?}");
+                state.repo.lock().await.deny_pubkeys(&pubkeys).await.ok();
+            }
+            return Ok(());
         }
     }
+
+    Err((StatusCode::UNAUTHORIZED, "".to_string()))
+}
+
+async fn get_users(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<Users>, (StatusCode, String)> {
+    debug!("{}", state.api_key);
+    if let Some(key) = headers.get("X-Api-Key") {
+        if key.eq(&state.api_key) {
+            let users = state.repo.lock().await.get_accounts().unwrap();
+            return Ok(Json(users));
+        }
+        return Err((StatusCode::UNAUTHORIZED, "Invalid API Key".to_string()));
+    }
+
+    Err((StatusCode::UNAUTHORIZED, "No Api Key".to_string()))
 }

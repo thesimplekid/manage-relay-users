@@ -1,7 +1,7 @@
 use redb::{Database, ReadableTable, TableDefinition};
 use tracing::debug;
 
-use crate::error::Error;
+use crate::{error::Error, Users};
 // key is hex pubkey value is name
 const ACCOUNTTABLE: TableDefinition<&str, u8> = TableDefinition::new("account");
 
@@ -87,7 +87,6 @@ impl Db {
     }
 
     pub fn read_all_accounts(&self) -> Result<(), Error> {
-        debug!("Registered accounts");
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(ACCOUNTTABLE)?;
 
@@ -95,6 +94,34 @@ impl Db {
             debug!("{:?}, {}", a.0.value(), a.1.value());
         }
         Ok(())
+    }
+
+    pub fn read_accounts(&self) -> Result<Users, Error> {
+        let read_txn = self.db.begin_read()?;
+        let table = read_txn.open_table(ACCOUNTTABLE)?;
+
+        let users: Vec<(String, u8)> = table
+            .iter()?
+            .map(|(k, s)| (k.value().to_string(), s.value()))
+            .collect();
+
+        let (allow, deny): (Vec<String>, Vec<String>) =
+            users
+                .iter()
+                .map(|(s, i)| (s, *i))
+                .fold((Vec::new(), Vec::new()), |mut acc, (s, i)| {
+                    match i {
+                        1 => acc.0.push(s.to_owned()),
+                        0 => acc.1.push(s.to_owned()),
+                        _ => {}
+                    }
+                    acc
+                });
+
+        Ok(Users {
+            allow: Some(allow),
+            deny: Some(deny),
+        })
     }
 
     pub fn clear_tables(&self) -> Result<(), Error> {

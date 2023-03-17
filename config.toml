@@ -1,2 +1,3 @@
 [info]
 admin_keys = ["HEX key of admin"]
+api_key = "apikey"

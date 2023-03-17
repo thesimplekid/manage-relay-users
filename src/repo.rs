@@ -3,6 +3,7 @@ use crate::db::Db;
 use crate::db::Status;
 use crate::error::Error;
 use crate::nauthz_grpc::Event;
+use crate::Users;
 
 use std::sync::{Arc, Mutex};
 
@@ -45,6 +46,10 @@ impl Repo {
 
     pub fn get_all_accounts(&self) -> Result<(), Error> {
         self.db.lock().unwrap().read_all_accounts()
+    }
+
+    pub fn get_accounts(&self) -> Result<Users, Error> {
+        self.db.lock().unwrap().read_accounts()
     }
 
     pub async fn admit_pubkeys(&self, pubkeys: &[String]) -> Result<(), Error> {

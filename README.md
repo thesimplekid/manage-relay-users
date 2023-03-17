@@ -3,7 +3,13 @@
 
 # gRPC Extensions for nostr-rs-relay
 
-gRPC authz server for [nostr-rs-rely](https://github.com/scsibug/nostr-rs-relay). Admits events based on whether they have been allowed by the relay admin.  The admin(s) can update accounts by publishing an `kind` 4242 event with an allow tag where index 0 is "allow" followed by the list of hex pubkeys, and a "deny" tag of the same format. Or by posting to the http endpoint (unimplemented)
+gRPC authz server for [nostr-rs-rely](https://github.com/scsibug/nostr-rs-relay). Admits events based on whether they have been allowed by the relay admin.  
+
+## Managing Users
+
+### Via Nostr
+
+The admin(s) can update accounts by publishing an `kind` 4242 event with an allow tag where index 0 is "allow" followed by the list of hex pubkeys, and a "deny" tag of the same format.
  
 For now this is not in a NIP if there is interest it can be more formalized.
 
@@ -27,6 +33,19 @@ https://github.com/thesimplekid/nostr-tool/tree/manage_relay_users
 }
 
 ```
+
+### HTTP API
+The users can be updated by sending a http `POST` to the  `/update` endpoint with a json body with the following format.
+
+```json
+{
+    "allow":, [<32-bytes hex of a pubkey>,  <32-bytes hex of a pubkey>, ...],
+    "deny": [<32-bytes hex of a pubkey>, <32-bytes hex of a pubkey>, ...],
+}
+```
+
+There is also a `GET` endpoint with at `/users` that will return json of the same format with allowed and denied users.
+
 
 If the relay has nip42 enabled it will use the authenticated pubkey if not the author pubkey of the note will be used. 
 
