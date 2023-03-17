@@ -54,7 +54,11 @@ impl Repo {
 
     pub async fn admit_pubkeys(&self, pubkeys: &[String]) -> Result<(), Error> {
         for pubkey in pubkeys {
-            self.update_account(pubkey, Status::Allow).await.ok();
+            // Really basic check that its a key
+            // Would like to test better
+            if pubkey.len() == 64 {
+                self.update_account(pubkey, Status::Allow).await.ok();
+            }
         }
         Ok(())
     }
@@ -109,7 +113,9 @@ mod tests {
         let allowed_keys = vec![
             "allow".to_string(),
             "9dc4e4790da6e1f00285c493ba491bfda3c3cba0c4511ac60ddadd6e74cdc31c".to_string(),
+            "9dc4e4790da6e1f00285c493ba491bfda3c3cba0c4511ac60ddadd6e74cdc31c".to_string(),
             "09f15c13dc7e0ce57041ed7eefea6d9927d10d9c1cc8eb8348dff19a799baa1a".to_string(),
+            "".to_string(),
         ];
 
         let denied_keys = vec![
