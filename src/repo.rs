@@ -4,6 +4,7 @@ use crate::db::Status;
 use crate::error::Error;
 use crate::nauthz_grpc::Event;
 use crate::Users;
+use anyhow::Result;
 
 use std::sync::{Arc, Mutex};
 
@@ -25,15 +26,15 @@ impl Repo {
         }
     }
 
-    pub fn add_account(&self, account: &Account) -> Result<(), Error> {
+    pub fn add_account(&self, account: &Account) -> Result<()> {
         self.db.lock().unwrap().write_account(account)
     }
 
-    pub fn get_account(&self, pubkey: &str) -> Result<Option<Account>, Error> {
+    pub fn get_account(&self, pubkey: &str) -> Result<Option<Account>> {
         self.db.lock().unwrap().read_account(pubkey)
     }
 
-    pub async fn update_account(&self, pubkey: &str, status: Status) -> Result<Account, Error> {
+    pub async fn update_account(&self, pubkey: &str, status: Status) -> Result<Account> {
         let account = Account {
             pubkey: pubkey.to_string(),
             status,
@@ -44,11 +45,11 @@ impl Repo {
         Ok(account)
     }
 
-    pub fn get_all_accounts(&self) -> Result<(), Error> {
+    pub fn get_all_accounts(&self) -> Result<()> {
         self.db.lock().unwrap().read_all_accounts()
     }
 
-    pub fn get_accounts(&self) -> Result<Users, Error> {
+    pub fn get_accounts(&self) -> Result<Users> {
         self.db.lock().unwrap().read_accounts()
     }
 

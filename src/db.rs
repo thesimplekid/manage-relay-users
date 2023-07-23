@@ -1,7 +1,9 @@
+use anyhow::Result;
 use redb::{Database, ReadableTable, TableDefinition};
 use tracing::debug;
 
-use crate::{error::Error, Users};
+use crate::Users;
+
 // key is hex pubkey value is name
 const ACCOUNTTABLE: TableDefinition<&str, u8> = TableDefinition::new("account");
 
@@ -64,7 +66,7 @@ impl Db {
         Self { db }
     }
 
-    pub fn write_account(&self, account: &Account) -> Result<(), Error> {
+    pub fn write_account(&self, account: &Account) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(ACCOUNTTABLE)?;
@@ -74,7 +76,7 @@ impl Db {
         Ok(())
     }
 
-    pub fn read_account(&self, pubkey: &str) -> Result<Option<Account>, Error> {
+    pub fn read_account(&self, pubkey: &str) -> Result<Option<Account>> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(ACCOUNTTABLE)?;
         if let Some(account_info) = table.get(pubkey)? {
@@ -87,22 +89,24 @@ impl Db {
         Ok(None)
     }
 
-    pub fn read_all_accounts(&self) -> Result<(), Error> {
+    pub fn read_all_accounts(&self) -> Result<()> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(ACCOUNTTABLE)?;
 
         for a in table.iter()? {
+            let a = a?;
             debug!("{:?}, {}", a.0.value(), a.1.value());
         }
         Ok(())
     }
 
-    pub fn read_accounts(&self) -> Result<Users, Error> {
+    pub fn read_accounts(&self) -> Result<Users> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(ACCOUNTTABLE)?;
 
         let users: Vec<(String, u8)> = table
             .iter()?
+            .flatten()
             .map(|(k, s)| (k.value().to_string(), s.value()))
             .collect();
 
@@ -125,7 +129,7 @@ impl Db {
         })
     }
 
-    pub fn clear_tables(&self) -> Result<(), Error> {
+    pub fn clear_tables(&self) -> Result<()> {
         let write_txn = self.db.begin_write()?;
 
         {
