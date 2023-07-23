@@ -27,6 +27,7 @@ THE SOFTWARE.
 */
 //!
 //!
+
 use config::{Config, ConfigError, File};
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,8 @@ pub struct Info {
     pub api_key: Option<String>,
     pub api_listen_host: Option<String>,
     pub api_listen_port: Option<u16>,
+    pub grpc_listen_host: Option<String>,
+    pub grpc_listen_port: Option<u16>,
     pub db_path: Option<String>,
 }
 

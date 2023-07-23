@@ -1,28 +1,24 @@
+use std::sync::Arc;
+
 use axum::http::HeaderMap;
-use clap::Parser;
-use tokio::sync::Mutex;
-use tonic::{transport::Server, Request, Response, Status};
-
-use nauthz_grpc::authorization_server::{Authorization, AuthorizationServer};
-use nauthz_grpc::{Decision, EventReply, EventRequest};
-
-use crate::cli::CLIArgs;
-use crate::config::Settings;
-use crate::repo::Repo;
-
-use serde::{Deserialize, Serialize};
-
 use axum::{
     extract::{Json, State},
     http::StatusCode,
     routing::{get, post},
     Router,
 };
-
-use std::sync::Arc;
-
+use clap::Parser;
+use nauthz_grpc::authorization_server::{Authorization, AuthorizationServer};
+use nauthz_grpc::{Decision, EventReply, EventRequest};
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tokio::task;
+use tonic::{transport::Server, Request, Response, Status};
 use tracing::{debug, info};
+
+use crate::cli::CLIArgs;
+use crate::config::Settings;
+use crate::repo::Repo;
 
 pub mod nauthz_grpc {
     tonic::include_proto!("nauthz");
@@ -102,12 +98,23 @@ impl Authorization for EventAuthz {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse().unwrap();
-
     tracing_subscriber::fmt::try_init().unwrap();
+
     let args = CLIArgs::parse();
 
     let settings = config::Settings::new(&args.config);
+
+    let grpc_listen_host = settings
+        .info
+        .grpc_listen_host
+        .clone()
+        .unwrap_or("127.0.0.1".to_string());
+
+    let grpc_listen_port = &settings.info.grpc_listen_port.unwrap_or(50001);
+
+    let addr = format!("{}:{}", grpc_listen_host, grpc_listen_port)
+        .parse()
+        .unwrap();
 
     let db_path = match args.db {
         Some(path) => Some(path),
