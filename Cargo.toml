@@ -1,6 +1,6 @@
 [package]
 name = "manage_relay_users"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 repository = "https://github.com/thesimplekid/manage-relay-users"
 authors = ["thesimplekid"]
