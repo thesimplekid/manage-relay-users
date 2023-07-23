@@ -44,26 +44,20 @@ pub struct Db {
     db: Database,
 }
 
-impl Default for Db {
-    fn default() -> Self {
-        Self::new(None)
-    }
-}
-
 impl Db {
-    pub fn new(db_path: Option<String>) -> Self {
+    pub fn new(db_path: Option<String>) -> Result<Self> {
         debug!("Creating DB");
 
         let db_path = db_path.unwrap_or("manage_users.redb".to_string());
-        let db = Database::create(db_path).unwrap();
-        let write_txn = db.begin_write().unwrap();
+        let db = Database::create(db_path)?;
+        let write_txn = db.begin_write()?;
         {
             // Opens the table to create it
-            let _ = write_txn.open_table(ACCOUNTTABLE).unwrap();
+            let _ = write_txn.open_table(ACCOUNTTABLE)?;
         }
-        write_txn.commit().unwrap();
+        write_txn.commit()?;
 
-        Self { db }
+        Ok(Self { db })
     }
 
     pub fn write_account(&self, account: &Account) -> Result<()> {

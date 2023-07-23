@@ -1,7 +1,6 @@
 use crate::db::Account;
 use crate::db::Db;
 use crate::db::Status;
-use crate::error::Error;
 use crate::nauthz_grpc::Event;
 use crate::Users;
 use anyhow::Result;
@@ -13,17 +12,11 @@ pub struct Repo {
     db: Arc<Mutex<Db>>,
 }
 
-impl Default for Repo {
-    fn default() -> Self {
-        Self::new(None)
-    }
-}
-
 impl Repo {
-    pub fn new(db_path: Option<String>) -> Self {
-        Repo {
-            db: Arc::new(Mutex::new(Db::new(db_path))),
-        }
+    pub fn new(db_path: Option<String>) -> Result<Self> {
+        Ok(Repo {
+            db: Arc::new(Mutex::new(Db::new(db_path)?)),
+        })
     }
 
     pub fn add_account(&self, account: &Account) -> Result<()> {
@@ -53,7 +46,7 @@ impl Repo {
         self.db.lock().unwrap().read_accounts()
     }
 
-    pub async fn admit_pubkeys(&self, pubkeys: &[String]) -> Result<(), Error> {
+    pub async fn admit_pubkeys(&self, pubkeys: &[String]) -> Result<()> {
         for pubkey in pubkeys {
             // Really basic check that its a key
             // Would like to test better
@@ -64,14 +57,14 @@ impl Repo {
         Ok(())
     }
 
-    pub async fn deny_pubkeys(&self, pubkeys: &[String]) -> Result<(), Error> {
+    pub async fn deny_pubkeys(&self, pubkeys: &[String]) -> Result<()> {
         for pubkey in pubkeys {
             self.update_account(pubkey, Status::Deny).await.ok();
         }
         Ok(())
     }
 
-    pub async fn handle_admission_update(&self, event: Event) -> Result<(), Error> {
+    pub async fn handle_admission_update(&self, event: Event) -> Result<()> {
         for tag in event.tags {
             match tag.values.get(0) {
                 Some(value) if value.as_str() == "allow" => {
@@ -125,7 +118,7 @@ mod tests {
             "2eb604f41ee770a9c0479ca371ffe1fd6aa169b64ec37c0de128001152e06c04".to_string(),
         ];
 
-        let repo = Repo::new(None);
+        let repo = Repo::new(None).unwrap();
         let event = Event {
             id: vec![],
             pubkey: vec![],

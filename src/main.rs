@@ -27,7 +27,6 @@ pub mod nauthz_grpc {
 pub mod cli;
 pub mod config;
 pub mod db;
-pub mod error;
 pub mod repo;
 pub mod utils;
 
@@ -43,7 +42,7 @@ impl Authorization for EventAuthz {
         request: Request<EventRequest>,
     ) -> Result<Response<EventReply>, Status> {
         let req = request.into_inner();
-        let event = req.clone().event.unwrap();
+        let event = req.clone().event.ok_or(Status::not_found(""))?;
         let content_prefix: String = event.content.chars().take(40).collect();
         info!("recvd event, [kind={}, origin={:?}, nip05_domain={:?}, tag_count={}, content_sample={:?}]",
                  event.kind, req.origin, req.nip05.as_ref().map(|x| x.domain.clone()), event.tags.len(), content_prefix);
@@ -66,10 +65,10 @@ impl Authorization for EventAuthz {
                     .await
                     .handle_admission_update(event)
                     .await
-                    .unwrap();
+                    .map_err(|_| Status::internal(""))?;
 
                 // TODO: This is testing comment out
-                self.repo.lock().await.get_all_accounts().unwrap();
+                // self.repo.lock().await.get_all_accounts().map(|_| Status::internal(""));
             }
 
             return Ok(Response::new(nauthz_grpc::EventReply {
@@ -97,7 +96,7 @@ impl Authorization for EventAuthz {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::try_init().unwrap();
 
     let args = CLIArgs::parse();
@@ -112,16 +111,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let grpc_listen_port = &settings.info.grpc_listen_port.unwrap_or(50001);
 
-    let addr = format!("{}:{}", grpc_listen_host, grpc_listen_port)
-        .parse()
-        .unwrap();
+    let addr = format!("{}:{}", grpc_listen_host, grpc_listen_port).parse()?;
 
     let db_path = match args.db {
         Some(path) => Some(path),
         None => settings.info.db_path.clone(),
     };
 
-    let repo = Arc::new(Mutex::new(Repo::new(db_path)));
+    let repo = Arc::new(Mutex::new(Repo::new(db_path)?));
 
     repo.lock().await.get_all_accounts()?;
 
@@ -137,7 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .info
             .api_listen_host
             .unwrap_or("127.0.0.1".to_string());
-        let _handle = task::spawn(async move {
+
+        task::spawn(async move {
             if let Err(err) = start_server(api_key, &host.clone(), port, repo).await {
                 log::warn!("{}", err);
             }
@@ -145,6 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("EventAuthz Server listening on {addr}");
+
     // Start serving
     Server::builder()
         .add_service(AuthorizationServer::new(checker))
@@ -182,8 +181,7 @@ async fn start_server(
     // run it with hyper on localhost:3000
     axum::Server::bind(&server_add)
         .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .await?;
 
     Ok(())
 }
@@ -206,13 +204,35 @@ async fn update_users(
             // Admit pubkeys
             if let Some(pubkeys) = &payload.allow {
                 debug!("Pubkeys to allow: {pubkeys:?}");
-                state.repo.lock().await.admit_pubkeys(&pubkeys).await.ok();
+                state
+                    .repo
+                    .lock()
+                    .await
+                    .admit_pubkeys(pubkeys)
+                    .await
+                    .map_err(|_| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Could not get admitted pubkeys".to_string(),
+                        )
+                    })?;
             }
 
             // Deny pubkeys
             if let Some(pubkeys) = &payload.deny {
                 debug!("Pubkeys to deny: {pubkeys:?}");
-                state.repo.lock().await.deny_pubkeys(&pubkeys).await.ok();
+                state
+                    .repo
+                    .lock()
+                    .await
+                    .deny_pubkeys(pubkeys)
+                    .await
+                    .map_err(|_| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Could not get denied pubkeys".to_string(),
+                        )
+                    })?;
             }
             return Ok(());
         }
@@ -228,7 +248,12 @@ async fn get_users(
     debug!("{}", state.api_key);
     if let Some(key) = headers.get("X-Api-Key") {
         if key.eq(&state.api_key) {
-            let users = state.repo.lock().await.get_accounts().unwrap();
+            let users = state.repo.lock().await.get_accounts().map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Could not get users".to_string(),
+                )
+            })?;
             return Ok(Json(users));
         }
         return Err((StatusCode::UNAUTHORIZED, "Invalid API Key".to_string()));
