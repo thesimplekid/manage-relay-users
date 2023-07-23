@@ -35,6 +35,9 @@ use serde::{Deserialize, Serialize};
 pub struct Info {
     pub admin_keys: Vec<String>,
     pub api_key: Option<String>,
+    pub api_listen_host: Option<String>,
+    pub api_listen_port: Option<u16>,
+    pub db_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

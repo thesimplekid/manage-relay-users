@@ -44,15 +44,16 @@ pub struct Db {
 
 impl Default for Db {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl Db {
-    pub fn new() -> Self {
+    pub fn new(db_path: Option<String>) -> Self {
         debug!("Creating DB");
-        let db = Database::create("my_db.redb").unwrap();
-        //  db.set_write_strategy(WriteStrategy::TwoPhase).unwrap();
+
+        let db_path = db_path.unwrap_or("manage_users.redb".to_string());
+        let db = Database::create(db_path).unwrap();
         let write_txn = db.begin_write().unwrap();
         {
             // Opens the table to create it

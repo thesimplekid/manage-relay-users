@@ -1,8 +1,8 @@
 run-dev:
-    RUST_LOG=WARN,contact_group_auth=DEBUG RUST_BACKTRACE=full cargo r
+    RUST_LOG=WARN,manage_relay_users=DEBUG RUST_BACKTRACE=full cargo r
 run-r:
     cargo build -r
-    RUST_LOG=WARN,contact_group_auth=DEBUG ./target/release/contact-group-auth
+    RUST_LOG=WARN,manage_relay_users=DEBUG ./target/release/manage_relay_users
 check:
     cargo fmt --check --all
     cargo clippy --all

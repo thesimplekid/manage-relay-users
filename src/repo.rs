@@ -14,14 +14,14 @@ pub struct Repo {
 
 impl Default for Repo {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl Repo {
-    pub fn new() -> Self {
+    pub fn new(db_path: Option<String>) -> Self {
         Repo {
-            db: Arc::new(Mutex::new(Db::new())),
+            db: Arc::new(Mutex::new(Db::new(db_path))),
         }
     }
 
@@ -124,7 +124,7 @@ mod tests {
             "2eb604f41ee770a9c0479ca371ffe1fd6aa169b64ec37c0de128001152e06c04".to_string(),
         ];
 
-        let repo = Repo::new();
+        let repo = Repo::new(None);
         let event = Event {
             id: vec![],
             pubkey: vec![],

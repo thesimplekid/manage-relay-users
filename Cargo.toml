@@ -1,8 +1,8 @@
 [package]
-name = "contact-group-auth"
+name = "manage_relay_users"
 version = "0.1.0"
 edition = "2021"
-# repository = 
+repository = "https://github.com/thesimplekid/manage-relay-users"
 authors = ["thesimplekid"]
 license = "BSD 3-Clause"
 readme = "README.md"
@@ -23,6 +23,7 @@ thiserror = "1"
 hex = "0.4.3"
 axum = { version = "0.6.11", features=["json"] }
 clap = { version = "4.3.14", features = ["env", "default", "derive"]}
+anyhow = "1.0.72"
 
 [dev-dependencies]
 serial_test = "1.0.0"

@@ -1,6 +1,5 @@
 use axum::http::HeaderMap;
 use clap::Parser;
-use error::Error;
 use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -110,9 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let settings = config::Settings::new(&args.config);
 
-    debug!("{:?}", settings);
+    let db_path = match args.db {
+        Some(path) => Some(path),
+        None => settings.info.db_path.clone(),
+    };
 
-    let repo = Arc::new(Mutex::new(Repo::new()));
+    let repo = Arc::new(Mutex::new(Repo::new(db_path)));
 
     repo.lock().await.get_all_accounts()?;
 
@@ -123,7 +125,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // run this in a new thread
     if let Some(api_key) = settings.info.api_key {
-        let _handle = task::spawn(start_server(api_key, repo));
+        let port = settings.info.api_listen_port.unwrap_or(3000);
+        let host = settings
+            .info
+            .api_listen_host
+            .unwrap_or("127.0.0.1".to_string());
+        let _handle = task::spawn(async move {
+            if let Err(err) = start_server(api_key, &host.clone(), port, repo).await {
+                log::warn!("{}", err);
+            }
+        });
     }
 
     info!("EventAuthz Server listening on {addr}");
@@ -142,7 +153,12 @@ struct AppState {
     repo: Arc<Mutex<Repo>>,
 }
 
-async fn start_server(api_key: String, repo: Arc<Mutex<Repo>>) -> Result<(), Error> {
+async fn start_server(
+    api_key: String,
+    host: &str,
+    port: u16,
+    repo: Arc<Mutex<Repo>>,
+) -> anyhow::Result<()> {
     let shared_state = AppState {
         api_key: api_key.to_string(),
         repo,
@@ -154,8 +170,10 @@ async fn start_server(api_key: String, repo: Arc<Mutex<Repo>>) -> Result<(), Err
         .route("/users", get(get_users))
         .with_state(shared_state);
 
+    let server_add = format!("{}:{}", host, port).parse()?;
+
     // run it with hyper on localhost:3000
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+    axum::Server::bind(&server_add)
         .serve(app.into_make_service())
         .await
         .unwrap();

@@ -1,3 +1,7 @@
 [info]
 admin_keys = ["HEX key of admin"]
-api_key = "apikey"
+# api_key = "apikey"
+# api_listen_host = "127.0.0.1"
+# api_listen_port = 3000
+
+# db_path = "./manage_users.redb"
