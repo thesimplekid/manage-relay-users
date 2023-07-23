@@ -1,4 +1,5 @@
 use axum::http::HeaderMap;
+use clap::Parser;
 use error::Error;
 use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
@@ -6,6 +7,7 @@ use tonic::{transport::Server, Request, Response, Status};
 use nauthz_grpc::authorization_server::{Authorization, AuthorizationServer};
 use nauthz_grpc::{Decision, EventReply, EventRequest};
 
+use crate::cli::CLIArgs;
 use crate::config::Settings;
 use crate::repo::Repo;
 
@@ -27,6 +29,7 @@ pub mod nauthz_grpc {
     tonic::include_proto!("nauthz");
 }
 
+pub mod cli;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -103,8 +106,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
 
     tracing_subscriber::fmt::try_init().unwrap();
+    let args = CLIArgs::parse();
 
-    let settings = config::Settings::new(&None);
+    let settings = config::Settings::new(&args.config);
 
     debug!("{:?}", settings);
 
