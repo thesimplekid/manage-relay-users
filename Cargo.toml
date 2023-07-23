@@ -6,6 +6,7 @@ repository = "https://github.com/thesimplekid/manage-relay-users"
 authors = ["thesimplekid"]
 license = "BSD 3-Clause"
 readme = "README.md"
+description = "gRPC extension for the nostr-rs-relay to manager allowed users"
 
 [dependencies]
 tokio = { version = "1.29.0", features = ["rt-multi-thread", "macros"] }
