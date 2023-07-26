@@ -5,6 +5,53 @@
 
 gRPC authz server for [nostr-rs-rely](https://github.com/scsibug/nostr-rs-relay). Admits events based on whether they have been allowed by the relay admin.  
 
+## Build and Run
+This package is an extension of nostr-rs-relay and the instructions here assume the relay exists in `./nostr-rs-relay/`
+1. Make sure you are running the latest version of Rust, if you installed with rustup:
+```
+rustup update
+```
+2. Clone and compile
+```
+git clone https://github.com/thesimplekid/manage-relay-users.git
+cd manage-relay-users
+cargo update
+cargo build -r
+```
+3. Edit the config file.
+```
+vim config.toml
+```
+Add a pubkey (in hex) that will have permission to administer the relay.
+Uncomment the grpc and db_path lines.
+
+4. Edit the config of the relay 
+```
+cd ../nostr-rs-relay
+vim config.toml
+```
+Find the line with `event_admission_server`
+```
+[grpc]
+# event_admission_server = "http://[::1]:50051" <---- this line
+```
+Uncomment this line and change it to reflect your local setup that matches the grpc config you used above. For example:
+```
+event_admission_server = "http://127.0.0.1:50001"
+``` 
+5. Run
+You will need to use `screen` or `tmux` or a different terminal tab so that you can run two processes.
+Start the relay manager first:
+```
+cd ../manage-relay-users
+./target/release/manage_relay_users --config config.toml
+```
+In a different terminal on the same system:
+```
+cd ../nostr-rs-relay
+RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay --config config.toml
+```
+
 ## Managing Users
 
 ### Via Nostr
