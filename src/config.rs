@@ -28,13 +28,19 @@ THE SOFTWARE.
 //!
 //!
 
+use std::collections::HashSet;
+
 use config::{Config, ConfigError, File};
 use log::warn;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Info {
     pub admin_keys: Vec<String>,
+    pub private_key: String,
+    pub home_relay: Option<Url>,
+    pub backup_relays: HashSet<Url>,
     pub api_key: Option<String>,
     pub api_listen_host: Option<String>,
     pub api_listen_port: Option<u16>,

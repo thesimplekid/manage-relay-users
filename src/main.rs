@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::http::HeaderMap;
@@ -10,6 +11,9 @@ use axum::{
 use clap::Parser;
 use nauthz_grpc::authorization_server::{Authorization, AuthorizationServer};
 use nauthz_grpc::{Decision, EventReply, EventRequest};
+use nostr_sdk::key::XOnlyPublicKey;
+use nostr_sdk::prelude::FromSkStr;
+use nostr_sdk::Keys;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio::task;
@@ -26,13 +30,19 @@ pub mod nauthz_grpc {
 
 pub mod cli;
 pub mod config;
-pub mod db;
 pub mod repo;
 pub mod utils;
 
 pub struct EventAuthz {
+    pub pubkey: XOnlyPublicKey,
     pub repo: Arc<Mutex<Repo>>,
     pub settings: Settings,
+}
+
+pub enum UserStatus {
+    Allowed,
+    Denied,
+    Unknown,
 }
 
 #[tonic::async_trait]
@@ -52,23 +62,11 @@ impl Authorization for EventAuthz {
             None => &event.pubkey,
         };
 
-        let author = hex::encode(author);
-
         // If author is trusted pubkey decode event and update account(s)
         // admit event
-        if self.settings.info.admin_keys.contains(&author) {
-            // I just picked this kind number should maybe put more thought into it, NIP?
-            if event.kind == 4242 {
-                // TODO: Spawn this to not block
-                self.repo
-                    .lock()
-                    .await
-                    .handle_admission_update(event)
-                    .await
-                    .map_err(|_| Status::internal(""))?;
-
-                // TODO: This is testing comment out
-                // self.repo.lock().await.get_all_accounts().map(|_| Status::internal(""));
+        if self.pubkey.eq(&XOnlyPublicKey::from_slice(author).unwrap()) {
+            if event.kind.eq(&300000) {
+                self.repo.lock().await.update_people(event).await.unwrap();
             }
 
             return Ok(Response::new(nauthz_grpc::EventReply {
@@ -77,21 +75,31 @@ impl Authorization for EventAuthz {
             }));
         }
 
-        // Check user is in DB
-        if let Ok(Some(user_account)) = self.repo.lock().await.get_account(&author) {
-            // Check user admission status
-            if user_account.is_admitted() {
-                return Ok(Response::new(nauthz_grpc::EventReply {
-                    decision: Decision::Permit as i32,
-                    message: Some("Ok".to_string()),
-                }));
+        let response = match self
+            .repo
+            .lock()
+            .await
+            .get_user_status(XOnlyPublicKey::from_slice(author).unwrap())
+            .await
+        {
+            UserStatus::Allowed => Response::new(nauthz_grpc::EventReply {
+                decision: Decision::Permit as i32,
+                message: Some("Ok".to_string()),
+            }),
+            UserStatus::Denied => Response::new(nauthz_grpc::EventReply {
+                decision: Decision::Deny as i32,
+                message: Some("Not allowed to publish".to_string()),
+            }),
+            UserStatus::Unknown => {
+                // TODO: Allow option to be default deny or allow
+                Response::new(nauthz_grpc::EventReply {
+                    decision: Decision::Deny as i32,
+                    message: Some("Not allowed to publish".to_string()),
+                })
             }
-        }
+        };
 
-        Ok(Response::new(nauthz_grpc::EventReply {
-            decision: Decision::Deny as i32,
-            message: Some("Not allowed to publish".to_string()),
-        }))
+        Ok(response)
     }
 }
 
@@ -113,16 +121,24 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = format!("{}:{}", grpc_listen_host, grpc_listen_port).parse()?;
 
-    let db_path = match args.db {
-        Some(path) => Some(path),
-        None => settings.info.db_path.clone(),
-    };
+    let keys = Keys::from_sk_str(&settings.info.private_key)?;
 
-    let repo = Arc::new(Mutex::new(Repo::new(db_path)?));
+    let mut repo = Repo::new(
+        keys.clone(),
+        settings
+            .info
+            .home_relay
+            .clone()
+            .expect("Home relay is not defined"),
+        settings.info.backup_relays.clone(),
+    )?;
 
-    repo.lock().await.get_all_accounts()?;
+    repo.restore_user_list().await?;
+
+    let repo = Arc::new(Mutex::new(repo));
 
     let checker = EventAuthz {
+        pubkey: keys.public_key(),
         repo: repo.clone(),
         settings: settings.clone(),
     };
@@ -188,8 +204,8 @@ async fn start_server(
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Users {
-    allow: Option<Vec<String>>,
-    deny: Option<Vec<String>>,
+    allow: Option<HashSet<XOnlyPublicKey>>,
+    deny: Option<HashSet<XOnlyPublicKey>>,
 }
 
 async fn update_users(
@@ -248,12 +264,7 @@ async fn get_users(
     debug!("{}", state.api_key);
     if let Some(key) = headers.get("X-Api-Key") {
         if key.eq(&state.api_key) {
-            let users = state.repo.lock().await.get_accounts().map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Could not get users".to_string(),
-                )
-            })?;
+            let users = state.repo.lock().await.get_users();
             return Ok(Json(users));
         }
         return Err((StatusCode::UNAUTHORIZED, "Invalid API Key".to_string()));

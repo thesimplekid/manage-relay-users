@@ -1,5 +1,10 @@
 [info]
-admin_keys = ["HEX key of admin"]
+admin_keys = ["646a3b00e49e393e0a383b0062c9ad9732a7ff644b4c3a4c0ab2787a5a11cd88"]
+private_key = "nsec1z40d2s4jst8n0nmejgmhlnqpuczt5l5jm4ue7vwhff3pvyl9fpfqs9ap4n"
+home_relay = "ws://127.0.0.1:8080"
+backup_relays = ["ws://127.0.0.1:8080"]
+
+
 # api_key = "apikey"
 # api_listen_host = "127.0.0.1"
 # api_listen_port = 3000
