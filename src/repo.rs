@@ -82,12 +82,8 @@ impl Repo {
 
     pub async fn admit_pubkeys(&mut self, pubkeys: &HashSet<XOnlyPublicKey>) -> Result<()> {
         self.allowed_pubkeys.extend(pubkeys);
-        self.denied_pubkeys = self
-            .denied_pubkeys
-            .iter()
-            .filter(|p| !self.allowed_pubkeys.contains(p))
-            .cloned()
-            .collect();
+        self.denied_pubkeys
+            .retain(|p| !self.allowed_pubkeys.contains(p));
 
         let allowed: Vec<_> = pubkeys
             .iter()
@@ -118,12 +114,8 @@ impl Repo {
 
     pub async fn deny_pubkeys(&mut self, pubkeys: &HashSet<XOnlyPublicKey>) -> Result<()> {
         self.denied_pubkeys.extend(pubkeys);
-        self.allowed_pubkeys = self
-            .allowed_pubkeys
-            .iter()
-            .filter(|p| !self.denied_pubkeys.contains(p))
-            .cloned()
-            .collect();
+        self.allowed_pubkeys
+            .retain(|p| !self.denied_pubkeys.contains(p));
 
         let denied: Vec<_> = pubkeys
             .iter()

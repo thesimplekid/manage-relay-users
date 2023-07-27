@@ -62,11 +62,19 @@ impl Authorization for EventAuthz {
             None => &event.pubkey,
         };
 
+        let author = XOnlyPublicKey::from_slice(author)
+            .map_err(|_| Status::internal("Invalid Author Key"))?;
+
         // If author is trusted pubkey decode event and update account(s)
         // admit event
-        if self.pubkey.eq(&XOnlyPublicKey::from_slice(author).unwrap()) {
+        if self.pubkey.eq(&author) {
             if event.kind.eq(&300000) {
-                self.repo.lock().await.update_people(event).await.unwrap();
+                self.repo
+                    .lock()
+                    .await
+                    .update_people(event)
+                    .await
+                    .map_err(|_| Status::internal("Could not update users"))?;
             }
 
             return Ok(Response::new(nauthz_grpc::EventReply {
@@ -75,13 +83,7 @@ impl Authorization for EventAuthz {
             }));
         }
 
-        let response = match self
-            .repo
-            .lock()
-            .await
-            .get_user_status(XOnlyPublicKey::from_slice(author).unwrap())
-            .await
-        {
+        let response = match self.repo.lock().await.get_user_status(author).await {
             UserStatus::Allowed => Response::new(nauthz_grpc::EventReply {
                 decision: Decision::Permit as i32,
                 message: Some("Ok".to_string()),
