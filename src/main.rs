@@ -91,11 +91,17 @@ impl Authorization for EventAuthz {
                 message: Some("Not allowed to publish".to_string()),
             }),
             UserStatus::Unknown => {
-                // TODO: Allow option to be default deny or allow
-                Response::new(nauthz_grpc::EventReply {
-                    decision: Decision::Deny as i32,
-                    message: Some("Not allowed to publish".to_string()),
-                })
+                if self.settings.info.implicit_allow {
+                    return Ok(Response::new(nauthz_grpc::EventReply {
+                        decision: Decision::Permit as i32,
+                        message: Some("Ok".to_string()),
+                    }));
+                } else {
+                    Response::new(nauthz_grpc::EventReply {
+                        decision: Decision::Deny as i32,
+                        message: Some("Not allowed to publish".to_string()),
+                    })
+                }
             }
         };
 

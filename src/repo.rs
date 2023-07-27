@@ -60,13 +60,9 @@ impl Repo {
             .get_events_of(vec![subscription], Some(timeout))
             .await?;
 
-        let allow_event = allow_events.iter().max_by_key(|e| e.created_at);
-
-        let allowed_pubkeys = self.pubkeys_from_nostr(allow_event.unwrap().to_owned())?;
-
-        log::debug!("Allowed Pubkey{:?}", allowed_pubkeys);
-
-        self.allowed_pubkeys = allowed_pubkeys;
+        if let Some(allow_event) = allow_events.iter().max_by_key(|e| e.created_at) {
+            self.allowed_pubkeys = self.pubkeys_from_nostr(allow_event.to_owned())?;
+        }
 
         let subscription = Filter::new()
             .pubkeys(vec![self.key.public_key()])
@@ -78,12 +74,9 @@ impl Repo {
             .get_events_of(vec![subscription], Some(timeout))
             .await?;
 
-        let deny_event = deny_events.iter().max_by_key(|e| e.created_at);
-
-        if let Some(deny_event) = deny_event {
+        if let Some(deny_event) = deny_events.iter().max_by_key(|e| e.created_at) {
             self.denied_pubkeys = self.pubkeys_from_nostr(deny_event.clone())?;
         }
-
         Ok(())
     }
 

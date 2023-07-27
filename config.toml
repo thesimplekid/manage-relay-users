@@ -1,8 +1,12 @@
 [info]
 # Nostr Private key used to manage relay users
-private_key = "<nostr nsec>"
+private_key = "83b1772f79ab192718dbdbdb1a01281aea6e03b66308369e40ba3b17d3fc8e49"
 # Relay urls to publish and restore user manage list
 relays = ["ws://127.0.0.1:8080"]
+
+# If set to true will allow events from pubkeys that are not explicilly denied
+# Default to false; denying pubkeys unless allowed
+# implicit_allow = false
 
 # Use a randomly generated sting as an api key for the http endpoints
 # Optional: if present enable http management endpoint

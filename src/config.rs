@@ -45,6 +45,7 @@ pub struct Info {
     pub grpc_listen_host: Option<String>,
     pub grpc_listen_port: Option<u16>,
     pub db_path: Option<String>,
+    pub implicit_allow: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
