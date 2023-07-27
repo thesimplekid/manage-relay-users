@@ -1,6 +1,6 @@
 [package]
 name = "manage_relay_users"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/thesimplekid/manage-relay-users"
 authors = ["thesimplekid"]
@@ -20,11 +20,11 @@ serde_json = {version = "1.0", features = ["preserve_order"]}
 log = "0.4.17"
 ctrlc = "3.2.5"
 hex = "0.4.3"
-axum = { version = "0.6.11", features=["json"] }
+axum = { version = "0.6.11", features = ["json"] }
 clap = { version = "4.3.14", features = ["env", "default", "derive"]}
 anyhow = "1.0.72"
 url = "2.4.0"
-nostr-sdk = "0.22.0"
+nostr-sdk = { version = "0.22.0", default-features = false, features = ["nip04", "nip19"]}
 
 [dev-dependencies]
 serial_test = "2.0.0"
