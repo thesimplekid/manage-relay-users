@@ -123,15 +123,7 @@ async fn main() -> anyhow::Result<()> {
 
     let keys = Keys::from_sk_str(&settings.info.private_key)?;
 
-    let mut repo = Repo::new(
-        keys.clone(),
-        settings
-            .info
-            .home_relay
-            .clone()
-            .expect("Home relay is not defined"),
-        settings.info.backup_relays.clone(),
-    )?;
+    let mut repo = Repo::new(keys.clone(), settings.info.relays.clone())?;
 
     repo.restore_user_list().await?;
 
