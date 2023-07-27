@@ -63,10 +63,10 @@ RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay --config confi
 Allowed and Denied pubkeys are maintained in two [Categorized People Lists](https://github.com/nostr-protocol/nips/blob/master/51.md#categorized-people-list).
 The nsec set in the config file is used by clients to publish list an `allow` list and a `deny` with the format set in [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md).
 
+### HTTP API
 
 ```
 
-### HTTP API
 The users can be updated by sending a http `POST` to the  `/update` endpoint with a json body with the following format.
 This extension with publish an updated Categorized People List with the updated users.
 
