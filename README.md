@@ -15,14 +15,18 @@ rustup update
 ```
 git clone https://github.com/thesimplekid/manage-relay-users.git
 cd manage-relay-users
-cargo update
 cargo build -r
 ```
 3. Edit the config file.
 ```
 vim config.toml
 ```
-Add a pubkey (in hex) that will have permission to administer the relay.
+
+Add a secret key.
+Categorized People Lists from this key will update the allowed and denied users.
+If the users are updated via http api this extension with publish an update list,
+this enables the extension to restore from the lists stored on configured relays.
+
 Uncomment the grpc and db_path lines.
 
 4. Edit the config of the relay 
@@ -56,33 +60,15 @@ RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay --config confi
 
 ### Via Nostr
 
-The admin(s) can update accounts by publishing an `kind` 4242 event with an allow tag where index 0 is "allow" followed by the list of hex pubkeys, and a "deny" tag of the same format.
- 
-For now this is not in a NIP if there is interest it can be more formalized.
+Allowed and Denied pubkeys are maintained in two [Categorized People Lists](https://github.com/nostr-protocol/nips/blob/master/51.md#categorized-people-list).
+The nsec set in the config file is used by clients to publish list an `allow` list and a `deny` with the format set in [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md).
 
-Events can be published using this branch of nostr tools or implementing the event format in other tools.
-
-https://github.com/thesimplekid/nostr-tool/tree/manage_relay_users
-
-```json
-{
-  "id": <32-bytes lowercase hex-encoded sha256 of the the serialized event data>,
-  "pubkey": <pubkey of the relay admin>,
-  "created_at": <unix timestamp in seconds>,
-  "kind": 4242,
-  "tags": [
-    ["allow", <32-bytes hex of a pubkey>,  <32-bytes hex of a pubkey>, ...],
-    ["deny", <32-bytes hex of a pubkey>, <32-bytes hex of a pubkey>, ...],
-    ...
-  ],
-  "content": "", 
-  ...
-}
 
 ```
 
 ### HTTP API
 The users can be updated by sending a http `POST` to the  `/update` endpoint with a json body with the following format.
+This extension with publish an updated Categorized People List with the updated users.
 
 ```json
 {

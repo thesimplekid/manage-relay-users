@@ -17,28 +17,23 @@ use crate::{UserStatus, Users};
 #[derive(Clone)]
 pub struct Repo {
     pub key: Keys,
-    pub home_relay: Url,
-    pub backup_relays: HashSet<Url>,
+    pub relays: HashSet<Url>,
     pub allowed_pubkeys: HashSet<XOnlyPublicKey>,
     pub denied_pubkeys: HashSet<XOnlyPublicKey>,
 }
 
 impl Repo {
-    pub fn new(key: Keys, home_relay: Url, backup_relays: HashSet<Url>) -> Result<Self> {
+    pub fn new(key: Keys, relays: HashSet<Url>) -> Result<Self> {
         Ok(Repo {
             key,
-            home_relay,
-            backup_relays,
+            relays,
             allowed_pubkeys: HashSet::new(),
             denied_pubkeys: HashSet::new(),
         })
     }
 
     pub async fn publish_event(&self, event: nostr_sdk::event::Event) -> Result<()> {
-        let mut relays = self.backup_relays.clone();
-        relays.insert(self.home_relay.clone());
-
-        let relays = relays.iter().map(|x| (x.to_string(), None)).collect();
+        let relays = self.relays.iter().map(|x| (x.to_string(), None)).collect();
 
         let client = Client::new(&self.key);
         client.add_relays(relays).await?;
@@ -49,10 +44,7 @@ impl Repo {
     }
 
     pub async fn restore_user_list(&mut self) -> Result<()> {
-        let mut relays = self.backup_relays.clone();
-        relays.insert(self.home_relay.clone());
-
-        let relays = relays.iter().map(|x| (x.to_string(), None)).collect();
+        let relays = self.relays.iter().map(|x| (x.to_string(), None)).collect();
 
         let client = Client::new(&self.key);
         client.add_relays(relays).await?;
