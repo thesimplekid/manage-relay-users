@@ -24,7 +24,7 @@ axum = { version = "0.6.11", features = ["json"] }
 clap = { version = "4.3.14", features = ["env", "default", "derive"]}
 anyhow = "1.0.72"
 url = "2.4.0"
-nostr-sdk = { version = "0.22.0", default-features = false, features = ["nip04", "nip19"]}
+nostr-sdk = { version = "0.23.0", default-features = false, features = ["nip04", "nip19"]}
 
 [dev-dependencies]
 serial_test = "2.0.0"
