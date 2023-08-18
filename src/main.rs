@@ -68,7 +68,10 @@ impl Authorization for EventAuthz {
         // If author is trusted pubkey decode event and update account(s)
         // admit event
         if self.pubkey.eq(&author) {
-            if event.kind.eq(&300000) {
+            if event
+                .kind
+                .eq(&nostr_sdk::Kind::CategorizedPeopleList.as_u64())
+            {
                 self.repo
                     .lock()
                     .await
