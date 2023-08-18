@@ -65,7 +65,7 @@ impl Repo {
         }
 
         let subscription = Filter::new()
-            .pubkeys(vec![self.key.public_key()])
+            .authors(vec![self.key.public_key().to_string()])
             .identifiers(vec!["deny"])
             .kind(Kind::CategorizedPeopleList);
 
