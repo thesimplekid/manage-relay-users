@@ -8,7 +8,7 @@ use nostr_sdk::prelude::*;
 use nostr_sdk::prelude::{decrypt, encrypt};
 use nostr_sdk::{EventBuilder, Tag};
 use std::time::Duration;
-use url::Url;
+use ::url::Url;
 
 use crate::nauthz_grpc::event::TagEntry;
 use crate::nauthz_grpc::Event;
